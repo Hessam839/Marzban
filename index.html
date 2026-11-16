@@ -54,7 +54,7 @@ details{padding:8px 14px;color:var(--mute);font-size:.88rem;line-height:1.9}deta
 <button class="btn" id="restart">شروع دوباره</button></header>
 <section id="stats" class="glass" aria-label="وضعیت شما"></section>
 <div id="stage">
-<div class="side"><div id="dock" role="group" aria-label="ساخت"><button id="market"><span class="ico" aria-hidden="true">◇</span><span class="t">بازار<small><bdi>12</bdi> سکه · <bdi>+1</bdi> سکه در ثانیه</small></span><kbd>1</kbd></button><button id="barracks"><span class="ico" aria-hidden="true">▣</span><span class="t">پادگان<small><bdi>16</bdi> سکه · هر <bdi>10</bdi> ثانیه سرباز</small></span><kbd>2</kbd></button></div><aside id="rank" class="glass" aria-label="رتبه‌بندی بازیکنان"></aside></div>
+<div class="side"><div id="dock" role="group" aria-label="ساخت"><button id="market"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28"><path d="M3 9l2-5h14l2 5z" fill="#f2c263"/><path d="M3 9h18v2H3z" fill="#c9922e"/><rect x="4" y="11" width="16" height="9" rx="1" fill="#94623f"/><circle cx="12" cy="15.5" r="2.6" fill="#ffd95a" stroke="#b8860b"/></svg></span><span class="t">بازار<small><bdi>12</bdi> سکه · <bdi>+1</bdi> سکه در ثانیه</small></span><kbd>1</kbd></button><button id="barracks"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z" fill="#6f8fb3" stroke="#2c3e55" stroke-width="1.2"/><path d="M8 8l8 8M16 8l-8 8" stroke="#eef3f7" stroke-width="2" stroke-linecap="round"/></svg></span><span class="t">پادگان<small><bdi>16</bdi> سکه · هر <bdi>10</bdi> ثانیه سرباز</small></span><kbd>2</kbd></button></div><aside id="rank" class="glass" aria-label="رتبه‌بندی بازیکنان"></aside></div>
 <div class="mapcol">
 <canvas id="board" width="640" height="640" tabindex="0" aria-label="نقشهٔ ۴۰ در ۴۰؛ با کلیک روی قلمرو همسایه حمله کنید"></canvas>
 <p id="status" role="status" aria-live="polite"></p>
@@ -165,17 +165,25 @@ for(const p of players){
  }
 }
 function building(x,y,type,color){
- ctx.save();ctx.translate(x,y);ctx.scale(1.6,1.6);ctx.fillStyle='#1b2b23aa';ctx.beginPath();ctx.ellipse(1,5,10,4,0,0,Math.PI*2);ctx.fill();
+ ctx.save();ctx.translate(x,y);ctx.scale(1.6,1.6);
+ const R=(a,b,w,h,c)=>{ctx.fillStyle=c;ctx.fillRect(a,b,w,h)},P=(q,c)=>{ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(q[0],q[1]);for(let i=2;i<q.length;i+=2)ctx.lineTo(q[i],q[i+1]);ctx.closePath();ctx.fill()},C=(a,b,r,c)=>{ctx.fillStyle=c;ctx.beginPath();ctx.arc(a,b,r,0,Math.PI*2);ctx.fill()},SH='#0000002e',HI='#ffffff33';
+ R(-11,5.5,22,1.2,'#00000000');ctx.fillStyle='#0a1a1455';ctx.beginPath();ctx.ellipse(1,6.5,12,3.4,0,0,Math.PI*2);ctx.fill();
  if(type==='castle'){
-  ctx.fillStyle='#d7c8a7';ctx.fillRect(-6,-6,12,12);ctx.fillStyle='#ad9978';ctx.fillRect(-9,-8,4,11);ctx.fillRect(5,-8,4,11);
-  ctx.fillStyle='#58483d';ctx.beginPath();ctx.moveTo(-8,-7);ctx.lineTo(0,-14);ctx.lineTo(8,-7);ctx.fill();
-  ctx.fillStyle='#42382e';ctx.fillRect(-2,1,4,5);ctx.fillStyle=color;ctx.fillRect(-8,-15,5,3);
+  R(-5,-6,10,12,'#dccfae');R(2,-6,3,12,SH);R(-5,-6,1.5,12,HI);for(let i=-5;i<5;i+=4)R(i,-8,2,2,'#dccfae');
+  for(const t of[-10,5]){R(t,-9,5,15,'#c9ba95');R(t+3,-9,2,15,SH);R(t,-9,1,15,HI);for(let i=0;i<3;i++)R(t+i*2-(i?0:0),-11,1.6,2,'#c9ba95');P([t-1,-9,t+2.5,-18,t+6,-9],'#a2523f');P([t+2.5,-18,t+6,-9,t+2.5,-9],SH);R(t+1.6,-5,1.8,3.2,'#3b3027')}
+  R(-10,5,20,1.6,'#9d8e6e');C(0,1.2,2.2,'#3b2f26');R(-2.2,1.2,4.4,4.8,'#3b2f26');
+  R(-.5,-18,1,10,'#5a4a3c');P([.5,-18,7,-15.7,.5,-13.4],color);P([.5,-15.7,7,-15.7,.5,-13.4],SH);C(0,-18.4,.9,'#f2d36b');
  }else if(type==='market'){
-  ctx.fillStyle='#e5d9b5';ctx.fillRect(-8,-2,16,8);ctx.fillStyle='#4f3428';ctx.beginPath();ctx.moveTo(-10,-3);ctx.lineTo(0,-11);ctx.lineTo(10,-3);ctx.fill();
-  ctx.fillStyle=color;for(let i=-8;i<=4;i+=6)ctx.fillRect(i,-4,4,3);
+  R(-9,0,18,6,'#94623f');R(-9,0,18,1.2,'#b07a52');R(-9,3,18,.6,'#00000040');R(-9,5,18,1,SH);R(-9,-6,1.4,6,'#5a3a24');R(7.6,-6,1.4,6,'#5a3a24');
+  C(-5.5,-.4,1.5,'#d9534f');C(-2.6,-.4,1.5,'#f0a030');C(.3,-.4,1.5,'#7cbf4a');R(3,-3,4,3,'#c89a5e');R(3,-3,4,.8,'#e3b97b');
+  for(let i=0;i<6;i++){const t0=-8+i*16/6,t1=t0+16/6,b0=-11+i*22/6,b1=b0+22/6;P([t0,-11,t1,-11,b1,-4,b0,-4],i%2?'#f6edd6':color);ctx.fillStyle=i%2?'#f6edd6':color;ctx.beginPath();ctx.arc((b0+b1)/2,-4,(b1-b0)/2,0,Math.PI);ctx.fill()}
+  P([-8,-11,8,-11,8,-9.6,-8,-9.6],HI);
  }else{
-  ctx.fillStyle='#aa9881';ctx.fillRect(-8,-4,16,10);ctx.fillStyle='#5c5148';ctx.beginPath();ctx.moveTo(-10,-4);ctx.lineTo(0,-11);ctx.lineTo(10,-4);ctx.fill();
-  ctx.fillStyle='#342d27';ctx.fillRect(-2,1,4,5);ctx.fillStyle=color;ctx.fillRect(7,-15,2,11);ctx.beginPath();ctx.moveTo(9,-15);ctx.lineTo(15,-12);ctx.lineTo(9,-9);ctx.fill();
+  R(-9,-3,18,9,'#ab9c84');R(4,-3,5,9,SH);R(-9,-3,1.5,9,HI);for(let j=0;j<3;j++)R(-9,-.5+j*3,18,.5,'#00000026');
+  P([-11.5,-3,-6.5,-11,6.5,-11,11.5,-3],'#5e504b');P([-11.5,-3,-10.3,-5,10.3,-5,11.5,-3],color);P([6.5,-11,11.5,-3,4,-3],SH);P([-6.5,-11,-11.5,-3,-9,-3],HI);
+  ctx.lineCap='round';ctx.strokeStyle='#e8eef2';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(-3.6,-9.4);ctx.lineTo(3.2,-5.2);ctx.moveTo(3.6,-9.4);ctx.lineTo(-3.2,-5.2);ctx.stroke();ctx.strokeStyle='#d9a82e';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(2.2,-7.2);ctx.lineTo(4.6,-5.6);ctx.moveTo(-2.2,-7.2);ctx.lineTo(-4.6,-5.6);ctx.moveTo(3.6,-4.6);ctx.lineTo(4.8,-6.4);ctx.moveTo(-3.6,-4.6);ctx.lineTo(-4.8,-6.4);ctx.stroke();
+  C(0,-1,0,'#000');R(-2.4,1,4.8,5,'#3a2c24');C(0,1,2.4,'#3a2c24');R(-7.5,0,2.4,3,'#2f2a26');R(5.1,0,2.4,3,'#2f2a26');
+  R(11.2,-16,1,22,'#5a4a3c');P([12.2,-16,18,-13.4,12.2,-10.8],color);P([12.2,-13.4,18,-13.4,12.2,-10.8],SH);C(11.7,-16.4,.9,'#f2d36b');
  }
  ctx.restore();
 }
