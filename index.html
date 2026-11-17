@@ -76,6 +76,7 @@ dialog form{display:grid;gap:14px}dialog h2{margin:0;font-size:1.4rem}dialog p{m
 const W=640,COLORS=['#59b9ff','#ed7975','#f2c263','#9bdd81','#c793ed','#ff9bbc','#86dbd3','#e9ab77','#a6a7f6'];
 let N=40,S=W/N,botMul=1,botGuard=.35,paused=false; // map size + difficulty, applied in start()
 const canvas=document.getElementById('board'),ctx=canvas.getContext('2d');
+const layer=document.createElement('canvas'),terr=document.createElement('canvas');layer.width=layer.height=terr.width=terr.height=W;const lx=layer.getContext('2d'),tx=terr.getContext('2d');let terrDirty=true;
 const ui={bots:document.getElementById('bots'),stats:document.getElementById('stats'),status:document.getElementById('status'),rank:document.getElementById('rank'),market:document.getElementById('market'),barracks:document.getElementById('barracks'),pause:document.getElementById('pause'),menu:document.getElementById('menu-dlg'),size:document.getElementById('size'),diff:document.getElementById('diff'),resume:document.getElementById('resume')};
 let uid=0,cells,players,units,mode='',elapsed=0,stepTime=0,done=false,last=0,notice='',noticeUntil=0;
 const at=(x,y)=>cells[y*N+x],inside=(x,y)=>x>=0&&x<N&&y>=0&&y<N;
@@ -86,6 +87,7 @@ function message(text){notice=text;noticeUntil=elapsed+4;ui.status.textContent=t
 const BARRACKS_COST=2; // gold per barracks soldier; castle soldiers stay free. No unit cap (user decision).
 function spawn(p,n,x=p.castle.x,y=p.castle.y){for(let i=0;i<n;i++)units.push({id:++uid,p:p.id,x,y,hp:2,guard:Math.random()<(p.id?botGuard:.35)})}
 function start(){
+ terrDirty=true;
  N=Number(ui.size.value)||40;S=W/N;canvas.ariaLabel=`نقشهٔ ${N} در ${N}؛ با کلیک روی قلمرو همسایه حمله کنید`;
  [botMul,botGuard]=({easy:[.6,.6],hard:[1.5,.2]})[ui.diff.value]||[1,.35]; // difficulty = bot income multiplier + share of bot soldiers that attack
  paused=false;ui.pause.textContent='⏸ توقف';ui.pause.classList.remove('active');
@@ -117,7 +119,7 @@ function bfs(k,id){
 }
 function income(p){return .5+cells.filter(c=>c.owner===p.id&&c.building==='market').length}
 function tick(){
- if(done)return;
+ if(done)return;terrDirty=true;
  // Each barracks runs its own 10s clock from the moment it was built. One pass over all cells: a per-player pass would reset other players' timers.
  const ready=[];cells.forEach((c,k)=>{if(c.building!=='barracks'||c.owner<0||!players[c.owner].alive){c.timer=0;return}c.timer=(c.timer||0)+1;if(c.timer>=10)ready.push([c,k])});
  // Fair when gold is short: longest-waiting barracks is paid first (ties random), so no barracks is starved by cell order.
@@ -217,9 +219,10 @@ function render(){updateRank();
  // ponytail: Deterministic terrain marks avoid asset downloads; use illustrated sprites if art direction expands.
  for(let i=0;i<600;i++){const x=(i*421+37)%W,y=(i*257+89)%W;ctx.fillStyle=i%4?'#c4b67b28':'#244c3940';ctx.beginPath();ctx.ellipse(x,y,i%4?2:4,i%4?1:2,.4,0,Math.PI*2);ctx.fill()}
  // Overlapping discs merge neighboring territory cells into an organic-looking painted region.
- ctx.globalAlpha=.74;
- for(let y=0;y<N;y++)for(let x=0;x<N;x++){const o=at(x,y).owner;if(o<0)continue;ctx.fillStyle=COLORS[o];ctx.beginPath();ctx.arc((x+.5)*S,(y+.5)*S,S*.875,0,Math.PI*2);ctx.fill()}
- ctx.globalAlpha=1;
+ // Territory is cached on `terr` and rebuilt only after a tick/start (ownership only changes there). Per player: opaque on offscreen layer (rim stroke, then fill hides interior seams), composited once with alpha.
+ if(terrDirty){terrDirty=false;tx.clearRect(0,0,W,W);for(const pl of players){const path=new Path2D();for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(at(x,y).owner===pl.id){path.moveTo((x+.5)*S+S*.875,(y+.5)*S);path.arc((x+.5)*S,(y+.5)*S,S*.875,0,Math.PI*2)}
+  lx.clearRect(0,0,W,W);lx.strokeStyle='#10201a';lx.lineWidth=S*.2;lx.stroke(path);lx.fillStyle=COLORS[pl.id];lx.fill(path);tx.globalAlpha=.74;tx.drawImage(layer,0,0);tx.globalAlpha=1}}
+ ctx.drawImage(terr,0,0);
  {const f=foes(),pulse=.5+.5*Math.sin(elapsed*4);for(let y=0;y<N;y++)for(let x=0;x<N;x++){const o=at(x,y).owner;if(o>0&&f.has(o)){ctx.strokeStyle=o===players[0].target?'#ff3b30':'#fff';ctx.globalAlpha=o===players[0].target?1:.35+.5*pulse;ctx.lineWidth=o===players[0].target?2.5:1.5;ctx.strokeRect(x*S+2,y*S+2,S-4,S-4)}}ctx.globalAlpha=1}
  for(const pass of[0,1])for(let y=0;y<N;y++)for(let x=0;x<N;x++){const c=at(x,y);if(c.building&&c.owner>=0&&(c.building==='castle')===!!pass)building((x+.5)*S,(y+.5)*S,c.building,COLORS[c.owner])}
  for(let i=0;i<units.length;i++){const u=units[i];if(!players[u.p].alive)continue;const t=Math.min(stepTime,1),x=((u.px??u.x)*(1-t)+u.x*t)*S+S/2+(u.id%3-1)*S*.14,y=((u.py??u.y)*(1-t)+u.y*t)*S+S/2+(Math.floor(u.id/3)%3-1)*S*.14;
