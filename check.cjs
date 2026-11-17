@@ -5,9 +5,9 @@ const html=fs.readFileSync(__dirname+'/index.html','utf8');
 const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script,'script exists');new vm.Script(script);
 const elements=new Map();
-function element(id){if(!elements.has(id))elements.set(id,{value:id==='bots'?'8':'',classList:{add(){},remove(){},toggle(){}},addEventListener(type,fn){this[type]=fn},getBoundingClientRect(){return {left:0,top:0,width:640,height:640}},getContext(){return new Proxy({createLinearGradient(){return {addColorStop(){}}}},{get:(target,key)=>target[key]||(()=>{})})}});return elements.get(id)}
+function element(id){if(!elements.has(id))elements.set(id,{value:id==='bots'?'8':'',classList:{add(){},remove(){},toggle(){}},addEventListener(type,fn){this[type]=fn},getBoundingClientRect(){return {left:0,top:0,width:640,height:640}},getContext(){return new Proxy({createLinearGradient(){return {addColorStop(){}}},getImageData(x,y,w,h){return {data:new Uint8ClampedArray(w*h*4)}},createImageData(w,h){return {data:new Uint8ClampedArray(w*h*4)}}},{get:(target,key)=>target[key]||(()=>{})})}});return elements.get(id)}
 const globalHandlers={};
-const context=vm.createContext({addEventListener(t,f){globalHandlers[t]=f},document:{getElementById:element,createElement:()=>element('c'+Math.random())},requestAnimationFrame(){},Path2D:class{moveTo(){}arc(){}},getComputedStyle(){return {borderLeftWidth:'0',borderTopWidth:'0',borderRightWidth:'0',borderBottomWidth:'0'}},Math,console});
+const context=vm.createContext({addEventListener(t,f){globalHandlers[t]=f},document:{getElementById:element,createElement:()=>element('c'+Math.random())},requestAnimationFrame(){},getComputedStyle(){return {borderLeftWidth:'0',borderTopWidth:'0',borderRightWidth:'0',borderBottomWidth:'0'}},Math,console});
 // Test-only event hooks: count actual movement and combat deaths, never population deltas.
 let combatEvents=null;
 context.traceCombat=event=>{if(combatEvents)combatEvents.push(event)};
