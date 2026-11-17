@@ -157,5 +157,20 @@ for(let t=1;t<=100;t++){
 }
 combatEvents=null;
 console.log('Combat totals (entry events, not unique cells): '+JSON.stringify(totals));
-console.log('PASS: syntax, spawn, production, economy, combat, borders, bots, no unit cap');
+// New: 8-direction movement, map sizes, difficulty, pause.
+assert.equal(vm.runInContext("start();neighbors(5,5).length",context),8,'8 neighbors inside map');
+assert.equal(vm.runInContext("neighbors(0,0).length",context),3,'corner has 3 neighbors');
+vm.runInContext("start();players.slice(1).forEach(p=>p.alive=false);units=[];cells.forEach(c=>{c.owner=-1;c.building=''});for(let i=0;i<10;i++)at(5+i,5+i).owner=0;players[0].castle={x:5,y:5};spawn(players[0],1,5,5);units[0].guard=false;units[0].g=14*N+14;units[0].px=5;units[0].py=5",context);
+vm.runInContext("tick()",context);
+assert.deepEqual(JSON.parse(vm.runInContext("JSON.stringify([units[0].x,units[0].y])",context)),[6,6],'unit steps diagonally');
+for(const [sz,exp] of [['30',30],['40',40],['50',50]]){element('size').value=sz;vm.runInContext('start()',context);assert.equal(vm.runInContext('N',context),exp);assert.equal(vm.runInContext('cells.length',context),exp*exp);
+ for(let i=0;i<vm.runInContext('players.length',context);i++)assert.ok(vm.runInContext(`players[${i}].castle.x<N&&players[${i}].castle.y<N&&at(players[${i}].castle.x,players[${i}].castle.y).owner===${i}`,context),'castle inside map '+sz)}
+element('size').value='40';
+element('diff').value='hard';vm.runInContext('start()',context);assert.equal(vm.runInContext('botMul',context),1.5);
+element('diff').value='easy';vm.runInContext('start()',context);assert.equal(vm.runInContext('botMul',context),.6);
+element('diff').value='normal';vm.runInContext('start()',context);assert.equal(vm.runInContext('botMul',context),1);
+vm.runInContext("start();players[0].gold=0;players[1].gold=0",context);vm.runInContext('setPause(true)',context);assert.equal(vm.runInContext('paused',context),true);
+element('board').click({clientX:100,clientY:100});vm.runInContext('setPause(false)',context);assert.equal(vm.runInContext('paused',context),false);
+vm.runInContext('start()',context);
+console.log('PASS: syntax, spawn, production, economy, combat, borders, bots, no unit cap, 8-dir moves, map sizes, difficulty, pause');
 
