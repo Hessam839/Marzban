@@ -23,18 +23,21 @@ for(const [from,to,count] of [
 vm.runInContext(tracedScript,context);
 assert.equal(vm.runInContext('players.length',context),9);
 assert.equal(vm.runInContext('units.filter(u=>u.p===0).length',context),3);
-assert.equal(vm.runInContext("at(6,6).building",context),'castle');
+assert.equal(vm.runInContext('at(players[0].castle.x,players[0].castle.y).building',context),'castle');
 vm.runInContext('players.slice(1).forEach(p=>p.alive=false);units=units.filter(u=>u.p===0);for(let i=0;i<60;i++)tick()',context);
 assert.equal(vm.runInContext('units.filter(u=>u.p===0).length',context),6);
 assert.ok(vm.runInContext('players[0].gold',context)>27.99);
 const owned=vm.runInContext('cells.filter(c=>c.owner===0).length',context);
 assert.ok(owned>21,'territory expands');
 vm.runInContext('players[0].gold=24',context);
-element('market').click();element('board').click({clientX:6*16+8,clientY:7*16+8});
-assert.equal(vm.runInContext("at(6,7).building",context),'market');
+// Random starts: derive build/attack cells from the player's own castle instead of fixed coordinates.
+const cs=JSON.parse(vm.runInContext('JSON.stringify([players[0].castle.x,players[0].castle.y])',context));
+element('market').click();element('board').click({clientX:cs[0]*16+8,clientY:(cs[1]+1)*16+8});
+assert.equal(vm.runInContext(`at(${cs[0]},${cs[1]+1}).building`,context),'market');
 assert.equal(vm.runInContext('players[0].gold',context),12);
-vm.runInContext('players[1].alive=true;at(8,7).owner=1',context);
-element('board').click({clientX:8*16+8,clientY:7*16+8});
+const ex=cs[0]+3<vm.runInContext('N',context)?cs[0]+3:cs[0]-3,ey=cs[1]; // own start blob spans ±2, so ±3 is the first enemy cell touching it
+vm.runInContext(`players[1].alive=true;at(${ex},${ey}).owner=1`,context);
+element('board').click({clientX:ex*16+8,clientY:ey*16+8});
 assert.equal(vm.runInContext('players[0].target',context),1);
 vm.runInContext('players[0].target=-1;at(30,30).owner=1',context);
 element('board').click({clientX:30*16+8,clientY:30*16+8});
@@ -54,18 +57,18 @@ vm.runInContext('start();players[0].target=1;units=units.filter(u=>u.p===0);remo
 const before=vm.runInContext('cells.filter(c=>c.owner===0).length',context);
 vm.runInContext('for(let i=0;i<40;i++)tick()',context);
 assert.ok(vm.runInContext('cells.filter(c=>c.owner===0).length',context)>before,'units resume free expansion after target dies');
-vm.runInContext("start();players.slice(2).forEach(p=>p.alive=false);units=units.filter(u=>u.p===0);cells.forEach(c=>{if(c.owner===1){c.owner=-1;c.building=''}});for(let x=9;x<16;x++)for(let y=3;y<10;y++)at(x,y).owner=1;players[1].castle={x:13,y:6};at(13,6).building='castle';for(let x=4;x<=8;x++)for(let y=4;y<=8;y++)at(x,y).owner=0;for(let i=0;i<15;i++)spawn(players[0],1);players[0].target=1;for(let i=0;i<60;i++)tick()",context);
+vm.runInContext("start();players.slice(2).forEach(p=>p.alive=false);units=units.filter(u=>u.p===0);cells.forEach(c=>{c.owner=-1;c.building=''});for(let x=9;x<16;x++)for(let y=3;y<10;y++)at(x,y).owner=1;players[1].castle={x:13,y:6};at(13,6).building='castle';for(let x=4;x<=8;x++)for(let y=4;y<=8;y++)at(x,y).owner=0;players[0].castle={x:6,y:6};for(let i=0;i<15;i++)spawn(players[0],1,6,6);players[0].target=1;for(let i=0;i<60;i++)tick()",context);
 assert.equal(vm.runInContext('players[1].alive',context),false,'soldiers attack target and capture its castle');
 vm.runInContext('start();players.slice(1).forEach(p=>p.alive=false);units=units.filter(u=>u.p===0);players[0].gold=0;players[0].production=59;tick()',context);
 assert.equal(vm.runInContext('units.filter(u=>u.p===0).length',context),6,'castle soldiers are free');
 vm.runInContext('start();players.slice(1).forEach(p=>p.alive=false);units=[];players[0].gold=0;players[0].production=0;let n=0;cells.forEach((c,k)=>{if(c.owner===0&&!c.building&&n<10){c.building="barracks";n++}});for(let i=1;i<=10;i++)tick()',context);
 assert.equal(vm.runInContext('units.length',context),2,'10 ready barracks but only 5 gold of income: 2 soldiers (2 gold each)');
 assert.equal(vm.runInContext('players[0].gold',context),1,'5 gold - 2 soldiers x 2 gold = 1');
-vm.runInContext('start();players.slice(1).forEach(p=>p.alive=false);units=[];players[0].gold=100;players[0].production=0;cells.forEach(c=>{c.building=""});at(6,7).building="barracks";for(let i=1;i<=10;i++)tick()',context);
+vm.runInContext('start();players.slice(1).forEach(p=>p.alive=false);units=[];players[0].gold=100;players[0].production=0;cells.forEach(c=>{c.building=""});cells.find(c=>c.owner===0).building="barracks";for(let i=1;i<=10;i++)tick()',context);
 assert.equal(vm.runInContext('units.length',context),1,'funded barracks produces after 10s');
 assert.equal(vm.runInContext('players[0].gold',context),100+5-2,'one soldier cost 2 gold');
 // No gold: barracks waits (no soldier, no negative gold), then produces as soon as gold arrives.
-vm.runInContext('start();players.slice(1).forEach(p=>p.alive=false);units=[];players[0].production=0;cells.forEach(c=>{c.building=""});at(6,7).building="barracks";players[0].gold=0;for(let i=0;i<9;i++){players[0].gold=0;tick()}players[0].gold=0;tick();',context);
+vm.runInContext('start();players.slice(1).forEach(p=>p.alive=false);units=[];players[0].production=0;cells.forEach(c=>{c.building=""});cells.find(c=>c.owner===0).building="barracks";players[0].gold=0;for(let i=0;i<9;i++){players[0].gold=0;tick()}players[0].gold=0;tick();',context);
 assert.equal(vm.runInContext('units.length',context),0,'no gold -> no barracks soldier');
 assert.equal(vm.runInContext('players[0].gold>=0',context),true,'gold never negative');
 vm.runInContext('players[0].gold=2;tick()',context);
@@ -76,14 +79,14 @@ assert.equal(vm.runInContext("typeof train",context),'undefined','no gold->soldi
 vm.runInContext("start();players.slice(1).forEach(p=>p.alive=false);units=[];cells.forEach(c=>{c.owner=0;c.building=''});spawn(players[0],1);units[0].x=5;units[0].y=5;units[0].px=1;units[0].py=1",context);
 vm.runInContext('tick()',context);
 assert.equal(vm.runInContext('units[0].px===units[0].x&&units[0].py===units[0].y',context),true,'unit that did not move has no stale slide');
-vm.runInContext("start();players.slice(1).forEach(p=>p.alive=false);units=[];players[0].production=0;at(6,7).building='barracks';at(7,7).building='barracks';for(let i=0;i<4;i++)tick();at(8,7).building='barracks';at(8,7).owner=0;at(7,7).owner=0;at(6,7).owner=0",context);
+vm.runInContext("start();players.slice(1).forEach(p=>p.alive=false);units=[];players[0].production=0;const [b1,b2,b3]=cells.filter(c=>c.owner===0&&!c.building);b1.building='barracks';b2.building='barracks';for(let i=0;i<4;i++)tick();b3.building='barracks'",context);
 const per=[];for(let i=0;i<10;i++){vm.runInContext('tick()',context);per.push(vm.runInContext('units.length',context))}
 assert.equal(per[4],0,'no soldiers before the first 10s');
 assert.equal(per[5],2,'two early barracks fire together at their own 10s');
 assert.equal(per[8],2,'late barracks has not fired yet');
 assert.equal(per[9],3,'late barracks fires 10s after its own build, not on the shared clock');
 element('bots').value='3';
-vm.runInContext("start();units=[];players[0].production=0;cells.forEach(c=>{c.building=''});at(6,7).owner=0;at(6,7).building='barracks';at(33,34).owner=3;at(33,34).building='barracks';for(let i=0;i<10;i++)tick();",context);
+vm.runInContext("start();units=[];players[0].production=0;cells.forEach(c=>{c.building=''});cells.find(c=>c.owner===0).building='barracks';cells.find(c=>c.owner===3).building='barracks';for(let i=0;i<10;i++)tick();",context);
 assert.equal(vm.runInContext('units.filter(u=>u.p===0).length',context)>=1,true,'human barracks produces while other players are alive');
 assert.equal(vm.runInContext('units.filter(u=>u.p===3).length',context)>=1,true,'last player barracks also produces');
 // Bot economy, each bot ALONE (no combat, so lost buildings are never mistaken for unbuilt ones). Isolated result is deterministic: 15 barracks, 8 markets at 120s.
@@ -110,7 +113,7 @@ assert.equal(lossB>=10,true,'passive side kills attackers (hits back): attacker 
 element('bots').value='2';
 // Per-enemy guard coverage (guard role only), idle / while attacking another bot / after a new front appears.
 const cover="(e=>{const bs=[];for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(at(x,y).owner===0&&neighbors(x,y).some(([a,b])=>at(a,b).owner===e))bs.push([x,y]);return units.filter(u=>u.p===0&&u.guard&&bs.some(([x,y])=>Math.abs(x-u.x)+Math.abs(y-u.y)<=2)).length})";
-const setup="start();players.forEach((p,i)=>{p.alive=i<3;p.target=-1});units=[];cells.forEach(c=>{c.owner=-1;c.building=''});for(let x=4;x<=12;x++)for(let y=4;y<=12;y++)at(x,y).owner=0;for(let x=13;x<=20;x++)for(let y=4;y<=12;y++)at(x,y).owner=1;for(let x=4;x<=12;x++)for(let y=13;y<=20;y++)at(x,y).owner=2;for(let i=0;i<100;i++)spawn(players[0],1);";
+const setup="start();players.forEach((p,i)=>{p.alive=i<3;p.target=-1});units=[];cells.forEach(c=>{c.owner=-1;c.building=''});for(let x=4;x<=12;x++)for(let y=4;y<=12;y++)at(x,y).owner=0;for(let x=13;x<=20;x++)for(let y=4;y<=12;y++)at(x,y).owner=1;for(let x=4;x<=12;x++)for(let y=13;y<=20;y++)at(x,y).owner=2;players[0].castle={x:6,y:6};for(let i=0;i<100;i++)spawn(players[0],1,6,6);";
 const run="for(let i=0;i<30;i++){tick();units=units.filter(u=>u.p===0);players[1].target=players[2].target=-1}";
 for(const [name,pre,mid] of [['idle','',''],['attacking bot 1','players[0].target=1;',''],['new front','for(let x=4;x<=12;x++)for(let y=13;y<=20;y++)at(x,y).owner=-1;','for(let x=4;x<=12;x++)for(let y=13;y<=20;y++)at(x,y).owner=2;']]){
  vm.runInContext(setup+pre+run+mid+(mid?run:''),context);
@@ -163,14 +166,55 @@ assert.equal(vm.runInContext("neighbors(0,0).length",context),3,'corner has 3 ne
 vm.runInContext("start();players.slice(1).forEach(p=>p.alive=false);units=[];cells.forEach(c=>{c.owner=-1;c.building=''});for(let i=0;i<10;i++)at(5+i,5+i).owner=0;players[0].castle={x:5,y:5};spawn(players[0],1,5,5);units[0].guard=false;units[0].g=14*N+14;units[0].px=5;units[0].py=5",context);
 vm.runInContext("tick()",context);
 assert.deepEqual(JSON.parse(vm.runInContext("JSON.stringify([units[0].x,units[0].y])",context)),[6,6],'unit steps diagonally');
-for(const [sz,exp] of [['30',30],['40',40],['50',50]]){element('size').value=sz;vm.runInContext('start()',context);assert.equal(vm.runInContext('N',context),exp);assert.equal(vm.runInContext('cells.length',context),exp*exp);
+for(const [sz,exp] of [['30',30],['40',40],['50',50],['64',64],['80',80]]){element('size').value=sz;vm.runInContext('start()',context);assert.equal(vm.runInContext('N',context),exp);assert.equal(vm.runInContext('cells.length',context),exp*exp);
  for(let i=0;i<vm.runInContext('players.length',context);i++)assert.ok(vm.runInContext(`players[${i}].castle.x<N&&players[${i}].castle.y<N&&at(players[${i}].castle.x,players[${i}].castle.y).owner===${i}`,context),'castle inside map '+sz)}
 element('size').value='40';
-element('diff').value='hard';vm.runInContext('start()',context);assert.equal(vm.runInContext('botMul',context),1.5);
-element('diff').value='easy';vm.runInContext('start()',context);assert.equal(vm.runInContext('botMul',context),.6);
-element('diff').value='normal';vm.runInContext('start()',context);assert.equal(vm.runInContext('botMul',context),1);
+for(const [d,m] of [['easy',1],['normal',1.5],['hard',2],['impossible',3]]){element('diff').value=d;vm.runInContext('start()',context);assert.equal(vm.runInContext('botMul',context),m,'difficulty '+d+' = bot income x'+m)}
+element('diff').value='normal';
 vm.runInContext("start();players[0].gold=0;players[1].gold=0",context);vm.runInContext('setPause(true)',context);assert.equal(vm.runInContext('paused',context),true);
 element('board').click({clientX:100,clientY:100});vm.runInContext('setPause(false)',context);assert.equal(vm.runInContext('paused',context),false);
 vm.runInContext('start()',context);
-console.log('PASS: syntax, spawn, production, economy, combat, borders, bots, no unit cap, 8-dir moves, map sizes, difficulty, pause');
+// Captured buildings survive: a market/barracks on the taken cell keeps working for the new owner.
+vm.runInContext("start();cells.forEach(c=>{c.owner=-1;c.building=''});players.forEach(p=>{p.gold=0;p.production=0;p.target=-1});at(9,10).owner=0;at(10,10).owner=1;at(10,10).building='market';players[0].target=1;units=[{p:0,x:9,y:10,hp:2,guard:false,g:409}];tick()",context);
+assert.equal(vm.runInContext('at(10,10).owner',context),0,'enemy cell taken');
+assert.equal(vm.runInContext("at(10,10).building",context),'market','captured market is not destroyed');
+// Conquered player: barracks/markets transfer intact, the castle is razed.
+vm.runInContext("start();cells.forEach(c=>{c.owner=-1;c.building=''});players.forEach(p=>{p.gold=0;p.production=0;p.target=-1});at(9,10).owner=0;at(10,10).owner=1;at(10,10).building='castle';at(12,12).owner=1;at(12,12).building='barracks';players[0].target=1;units=[{p:0,x:9,y:10,hp:2,guard:false,g:409}];tick()",context);
+assert.equal(vm.runInContext('players[1].alive',context),false,'castle captured eliminates the player');
+assert.equal(vm.runInContext("at(10,10).building+'/'+at(10,10).owner",context),'/0','captured castle is razed, cell goes to the winner');
+assert.equal(vm.runInContext("at(12,12).building+'/'+at(12,12).owner",context),'barracks/0','conquered barracks kept and owned by the winner');
+// Random starts: positions differ between games, castles stay >=7 apart (starting diamonds are radius 3) and inside the map.
+const posOf=()=>vm.runInContext('JSON.stringify(players.map(p=>[p.castle.x,p.castle.y]))',context);
+element('bots').value='4';element('size').value='40';
+vm.runInContext('start()',context);const posA=posOf();
+vm.runInContext('start()',context);const posB=posOf();
+assert.notEqual(posA,posB,'start positions are random');
+const pts=JSON.parse(posB);
+for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++)assert.ok(Math.max(Math.abs(pts[i][0]-pts[j][0]),Math.abs(pts[i][1]-pts[j][1]))>=7,'castles '+i+'/'+j+' do not overlap: '+JSON.stringify(pts));
+// Spawn spread: the human must not be boxed in — mean distance to the nearest bot stays wide over many games.
+let nnSum=0;
+for(let t=0;t<40;t++){
+ vm.runInContext('start()',context);
+ const d=JSON.parse(posOf());
+ nnSum+=Math.min(...d.slice(1).map(q=>Math.max(Math.abs(d[0][0]-q[0]),Math.abs(d[0][1]-q[1]))));
+}
+assert.ok(nnSum/40>=11,'human start is not boxed in: mean nearest bot '+(nnSum/40).toFixed(1));
+// Zoom (Q/E) and camera pan (WASD).
+const key=code=>globalHandlers.keydown({code,target:{tagName:'BODY'},preventDefault(){}});
+vm.runInContext('start()',context);
+key('KeyE');assert.ok(vm.runInContext('zoom',context)>1,'E zooms in');
+key('KeyE');const z2=vm.runInContext('zoom',context);assert.ok(z2>1.5,'zoom stacks');
+key('KeyQ');assert.ok(vm.runInContext('zoom',context)<z2,'Q zooms out');
+vm.runInContext('zoom=2;camX=0;camY=0;last=0',context);
+key('KeyD');
+vm.runInContext('frame(1);frame(1001)',context);
+assert.ok(vm.runInContext('camX',context)>0,'D pans the camera');
+globalHandlers.keyup({code:'KeyD'});
+vm.runInContext('frame(2001)',context);const still=vm.runInContext('camX',context);
+vm.runInContext('frame(3001)',context);
+assert.equal(vm.runInContext('camX',context),still,'camera stops on key release');
+for(let i=0;i<6;i++)key('KeyQ');
+assert.equal(vm.runInContext('zoom',context),1,'Q zooms out to fit');
+assert.equal(vm.runInContext('camX',context),0,'camera clamped at zoom 1');
+console.log('PASS: syntax, spawn, production, economy, combat, borders, bots, no unit cap, 8-dir moves, map sizes, difficulty, pause, building capture, random starts, zoom, pan');
 
